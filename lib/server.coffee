@@ -19,29 +19,32 @@ options = {
 }
 
 class Message
-  constructor: ->
+  constructor: () ->
     @items = []
 
 
   itemWithId: (id) ->
     items = @items.filter (item) ->
       item.id == id
-    items[0]
+    items[0] || {}
 
-  token: ->
+  token: () ->
     @itemWithId(1).data
 
-  data: ->
+  data: () ->
     @itemWithId(2).data
 
-  identifier: ->
+  identifier: () ->
     @itemWithId(3).data
 
-  expiry: ->
+  expiry: () ->
     @itemWithId(4).data
 
-  priority: ->
+  priority: () ->
     @itemWithId(5).data
+
+  to_s: () ->
+    "Message(token: #{@token()}, data: #{@data()}, id: #{@identifier()}, expire: #{@expiry()}, priority: #{@priority()})"
 
 
 class Item
@@ -53,69 +56,51 @@ class Item
 parseMessages = (data) ->
   offset = 0
   messages = []
-
-  while offset < data.length
-    console.log("new message")
-    message = new Message
-    baseOffset = offset
-    command = data.readUInt8(offset)
-    offset += 1
-    console.log(command)
-
-    frameLength = data.readUInt32BE(offset)
-    offset += 4
-
-    while (offset - baseOffset) < frameLength
-      console.log("dataLenth:   #{data.length}")
-      console.log("offset:      #{offset}")
-      console.log("baseoffset:  #{baseOffset}")
-      console.log("adjusted:    #{offset-baseOffset}")
-      console.log("frameLength: #{frameLength}")
-
-      itemId = data.readUInt8(offset)
+  try
+    while offset < data.length
+      message = new Message
+      baseOffset = offset
+      command = data.readUInt8(offset)
       offset += 1
 
-      itemDataLength = data.readUInt16BE(offset)
-      offset += 2
+      frameLength = data.readUInt32BE(offset)
+      offset += 4
 
-      itemData = data.slice(offset, offset+itemDataLength)
+      while (offset - baseOffset) < frameLength + 2
+        itemId = data.readUInt8(offset)
+        offset += 1
+
+        itemDataLength = data.readUInt16BE(offset)
+        offset += 2
+
+        itemData = data.slice(offset, offset+itemDataLength)
+        offset += itemDataLength
+
+        switch itemId
+          when 1 # Token
+            itemData = itemData.toString('hex')
+
+          when 2 # Data
+            itemData = itemData.toString()
+
+          when 3 # Identifier
+            itemData = itemData.readUInt32BE(0)
+
+          when 4 # Expiration
+            itemData = itemData.readUInt32BE(0)
+
+          when 5 # Priority
+            itemData = itemData.readUInt8(0)
+
+          else # Unknown
+            throw "NOPE"
+
+        message.items.push(new Item(itemId, itemData))
+      messages.push(message)
+  catch error
+    console.log(error)
 
 
-
-
-      switch itemId
-        when 1 # Token
-          console.log(">>> TOKEN")
-          itemData = itemData.toString('hex')
-          console.log(itemData)
-          offset += itemData.length
-        when 2 # Data
-          console.log(">>> payload")
-          itemData = itemData.toString()
-          console.log(itemData)
-          offset += itemData.length
-        when 3 # Identifier
-          console.log(">>> 3")
-          itemData = itemData.readUInt32BE(0)
-          offset += 4
-        when 4 # Expiration
-          console.log(">>> 4")
-          itemData = itemData.readUInt32BE(0)
-          offset += 4
-        when 5 # Priority
-          console.log(">>> 5")
-          itemData = itemData.readUInt8(0)
-          offset += 1
-        else # Unknown
-          console.log("ELSE!!! #{itemId}")
-          itemData = itemId
-
-
-      message.items.push(new Item(itemId, itemData))
-
-    console.log("end message")
-    console.log()
-    messages.push(message)
 
   messages
 
@@ -130,9 +115,8 @@ server = tls.createServer options, (conn) ->
 
   conn.on 'data', (data) ->
     console.log("======")
-    parseMessages(data)
-    console.log("Received Messages")
-
+    messages = parseMessages(data)
+    console.log(message.to_s()) for message in messages
 
 
 

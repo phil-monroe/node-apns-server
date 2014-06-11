@@ -91,20 +91,17 @@ apns.certificate = APNConnection::CERT
 # An example of the token sent back when a device registers for notifications
 
 
-notifications = 10.times.map do |i|
-  token = "fe15a27d5df3c34778defb1f4f3880265cc52c0c047682223be59fb68500a9a2"
+notifications = 100.times.map do |i|
+  token = SecureRandom.hex(32) #"fe15a27d5df3c34778defb1f4f3880265cc52c0c047682223be59fb68500a9a2"
 
   notification = Houston::Notification.new(device: token)
   notification.alert = "Hello, World!"
-  # notification.badge = 1
-  # notification.sound = "sosumi.aiff"
-  # notification.content_available = true
-  # notification.custom_data = {foo: "bar"}
-  # notification.expiry = Time.now.to_i + 25
-  # notification.priority = 10
-
-  puts notification.token
-  puts notification.payload
+  notification.badge = 1  #
+  notification.sound = "sosumi.aiff"
+  notification.content_available = true
+  notification.custom_data = {foo: "bar"}
+  notification.expiry = Time.now.to_i + 25
+  notification.priority = 10
   notification
 end
 
