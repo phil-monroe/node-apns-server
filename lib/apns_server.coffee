@@ -19,9 +19,7 @@ module.exports = class APNSServer
   }
 
   constructor: () ->
-    @connections = []
     @server = tls.createServer options, @newConnection
-    console.log(this)
 
   newConnection: (conn) =>
     new APNSConnection(this, conn)
