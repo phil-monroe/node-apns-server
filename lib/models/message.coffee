@@ -38,6 +38,13 @@ module.exports = class Message
     @itemWithId(5).data
 
 
+  valid: () ->
+    @token()[0] != "5"
+
+  to_hash: () ->
+    { token: @token(), data: @data(), id: @identifier(), expiry: @expiry(), priority: @priority() }
+
+
   to_s: () ->
-    "Message(token: #{@token()}, data: #{@data()}, id: #{@identifier()}, expire: #{@expiry()}, priority: #{@priority()})"
+    "Message(token: #{@token()}, valid: #{@valid()}, data: #{@data()}, id: #{@identifier()}, expire: #{@expiry()}, priority: #{@priority()})"
 
