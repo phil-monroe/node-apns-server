@@ -21,20 +21,19 @@ module.exports = class APNSServer
   }
 
   constructor: () ->
-    @messages = []
-
+    @messages   = []
     @server     = tls.createServer options, @newConnection
     @httpServer = http.createServer @handleHttpRequest
-
-
 
 
   newConnection: (conn) =>
     new APNSConnection(this, conn)
 
+
   recievedMessages: (messages) ->
     @messages = @messages.concat(messages)
     console.log("received #{messages.length} messages, #{@messages.length} total")
+
 
   handleHttpRequest: (req, res) =>
       if(req.url == "/reset")

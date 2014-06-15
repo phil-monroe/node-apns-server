@@ -1,5 +1,7 @@
 Frame = require('./models/frame')
-BadTokenError = require('./models/bad_token_error')
+BadTokenError       = require('./models/bad_token_error')
+ServerShutdownError = require('./models/server_shutdown_error')
+
 
 module.exports = class APNSConnection
   constructor: (server, connection) ->
@@ -11,44 +13,59 @@ module.exports = class APNSConnection
 
     @totalMessages = 0
     @debug = process.env.DEBUG == "true"
+    @lastIdentifier = undefined
 
 
   dataReceived: (data) =>
+    return if @error
+
+    if @error = @serverShutdownError()
+      messages = []
+    else
+      [messages, @error] = @parseMessages(data)
+
+
     if @error
-      return
-
-    messages = @parseMessages(data)
-
-    idx = -1
-    for message, i in messages
-      if !message.valid()
-        idx = i
-        break
-
-    if idx > -1
-      @error = new BadTokenError(messages[idx])
-      @connection.write(@error.buffer)
-      @connection.end()
-
-      if idx == 0
-        messages = []
-      else
-        messages = messages.slice(0, idx)
+      @handleError(@error)
 
     if(@debug)
       console.log(message.to_s()) for message in messages
 
     if(messages.length > 0)
+      @lastIdentifier = messages[messages.length-1].identifier()
       @server.recievedMessages(messages)
 
 
+  connectionClosed: () ->
 
-  connectionClosed: () =>
+
+
+  serverShutdownError: () ->
+    if @lastIdentifier != undefined && Math.random() < 0.05
+      new ServerShutdownError(@lastIdentifier)
+
+
+  handleError: (error) =>
+    console.log(error.constructor.name)
+    @connection.write(@error.buffer)
+    @connection.end()
 
 
   parseMessages: (data) ->
-    @parseFrames(data).map (frame) ->
-      frame.message()
+    error = undefined
+    messages = @parseFrames(data).map (frame) ->
+      unless error
+        message = frame.message()
+        if message.valid()
+          message
+        else
+          error = new BadTokenError(message)
+          undefined
+
+    messages = messages.filter (msg) ->
+      msg != undefined
+
+    [messages, error]
 
 
   parseFrames: (data) ->
